@@ -1,0 +1,30 @@
+require('dotenv').config();
+const { Sequelize } = require("sequelize");
+
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASS,
+  {
+    host: process.env.DB_HOST,
+    dialect: "postgres",
+    port: process.env.DB_PORT
+  }
+);
+
+module.exports = sequelize;
+
+
+// to check weather database is connected or not !
+
+
+// async function testDataBaseConnection( ) {
+//     try {
+//         await sequelize.authenticate();
+//         console.log("Done !");
+//     } catch(error) {
+//         console.error("Not connected : ",error);
+//     }
+// }
+
+// testDataBaseConnection();
