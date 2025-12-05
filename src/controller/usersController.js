@@ -2,12 +2,21 @@ const getUserUsecase = require('../usecase/user/getUserUsecase');
 const updateProfileUsecase = require('../usecase/user/updateProfileUsecase');
 const updatePasswordUsecase = require('../usecase/user/updatePasswordUsecase');
 const softDeleteUserUsecase = require('../usecase/user/softDeleteUserUsecase');
+const createUserUsecase = require('../usecase/user/createUserUsecase');
 
 const getById = async (req, res, next) => {
   try {
     const out = await getUserUsecase({ requester: req.user, targetId: Number(req.params.id) });
     return res.json(out);
   } catch (err) { next(err); }
+};
+
+const createUser = async (req, res, next ) => {
+  try {
+    const out = await createUserUsecase({ requester: req.user, ...req.body });
+    return res.status(201).json(out);
+  } catch (err) { next(err); }
+  
 };
 
 const updateProfile = async (req, res, next) => {
@@ -33,4 +42,4 @@ const softDelete = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getById, updateProfile, updatePassword, softDelete };
+module.exports = { getById, updateProfile, updatePassword, softDelete, createUser };

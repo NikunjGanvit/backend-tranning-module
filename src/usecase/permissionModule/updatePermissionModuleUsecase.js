@@ -2,7 +2,7 @@ const repo = require('../../data-access/repositories/permissionModuleRepository'
 
 const updatePermissionModuleUsecase = async ({ module_code, patch }) => {
   const [updated] = await repo.updateByCode(module_code, patch);
-  if (!updated) throw { status: 404, message: 'Not found' };
+  if (!updated) throw { status: 404, message: 'Permission module does not exist' };
   return repo.findByCode(module_code);
 };
 

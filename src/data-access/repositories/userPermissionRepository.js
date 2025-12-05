@@ -4,6 +4,10 @@ const findByUserAndModule = async (user_id, module_code) => {
   return UserPermission.findOne({ where: { user_id, module_code }});
 };
 
+const findById = async (user_id) => {
+  return UserPermission.findOne({ where: { user_id}});
+};
+
 const create = async (payload) => UserPermission.create(payload);
 
 const updateById = async (id, patch) => {
@@ -21,4 +25,4 @@ const upsert = async (user_id, module_code, payload) => {
   return row;
 };
 
-module.exports = { findByUserAndModule, create, updateById, upsert };
+module.exports = { findByUserAndModule, create, updateById, upsert, findById };
