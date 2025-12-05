@@ -1,7 +1,7 @@
 const userRepo = require('../../data-access/repositories/userRepository');
 
 const updateProfileUsecase = async ({ requester, targetId, patch }) => {
-  if (!requester.is_admin && requester.id !== targetId) throw { status: 403, message: 'Forbidden' };
+  if (!requester.is_admin && requester.id !== targetId) throw { status: 403, message: 'You are not Admin !' };
   await userRepo.updateById(targetId, patch);
   const user = await userRepo.findById(targetId);
   if (!user) throw { status: 404, message: 'Not found' };

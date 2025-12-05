@@ -10,3 +10,4 @@ const getUserUsecase = async ({ requester, targetId }) => {
 };
 
 module.exports = getUserUsecase;
+//$2b$10$9BdFN.Ik9r12bHW2zPjekO9W9L74/CfoeTV9I1/ZwenHA.GJ91EgW

@@ -16,3 +16,4 @@ const update = async (req, res, next) => {
 };
 
 module.exports = { create, update };
+
