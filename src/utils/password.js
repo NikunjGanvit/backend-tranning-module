@@ -11,4 +11,3 @@ const comparePassword = async (plain, hash) => {
 };
 
 module.exports = { hashPassword, comparePassword };
-//$2b$12$.u0BlSaXuJ8AglC4UM2iJOUE3xxJTFutCw1jW.nKCRQ2CrTvNuwEi {Admin@123}

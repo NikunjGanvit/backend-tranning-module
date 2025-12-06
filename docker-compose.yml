@@ -14,5 +14,20 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  minio:
+    image: minio/minio:latest
+    container_name: my_minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"  # MinIO API
+      - "9001:9001"  # MinIO Console
+    volumes:
+      - miniodata:/data
+    command: server /data --console-address ":9001"
+
 volumes:
   pgdata:
+  miniodata:

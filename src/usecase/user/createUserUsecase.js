@@ -11,9 +11,9 @@ const createUserUsecase = async ({ requester, username, password, address1, addr
   const isAdmin = requester.is_admin === true; // force boolean
 
   if (isAdmin) {
-    // Admins can create users
+
   } else {
-    // Check if requester has can_create permission for the 'user' module
+  
     const userPermission = await userPermissionRepo.findById(requester.id); 
     if (!userPermission || !userPermission.can_create) {
       throw { status: 403, message: 'Forbidden - lack create permission for users!' };

@@ -3,7 +3,8 @@ const routes = require('./routes');
 const errorHandler = require('./utils/httpErrors');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
-
+const minioClient = require('./utils/minioClient');
+require('./utils/cron/deleteSoftDeletedUsers');
 const app = express();
 
 // Security: CORS if needed for frontend (add if cross-origin)
@@ -12,6 +13,28 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000', // Adjust
   credentials: true, // Allow session cookies
 }));
+
+async function testMinIOConnection() {
+  try {
+    const buckets = await minioClient.listBuckets();
+    console.log('✅ MinIO Connected! Existing buckets:', buckets.map(b => b.name));
+
+    // Optional: Create bucket for items
+    const bucketName = 'items-pictures';
+    const exists = await minioClient.bucketExists(bucketName);
+    if (!exists) {
+      await minioClient.makeBucket(bucketName, 'us-east-1');
+      console.log(`✅ Created bucket: ${bucketName}`);
+    } else {
+      console.log(`✅ Bucket '${bucketName}' ready.`);
+    }
+  } catch (err) {
+    console.error('❌ MinIO Connection failed:', err.message);
+    process.exit(1);  // Stop app if MinIO is critical
+  }
+}
+
+testMinIOConnection();
 
 app.use(cookieParser());
 app.use(

@@ -5,6 +5,13 @@ const auth = require('../controller/authController');
 const users = require('../controller/usersController');
 const permissions = require('../controller/permissionController');
 const userPermissions = require('../controller/userPermissionController');
+const item = require('../controller/itemController');
+
+const multer = require('multer');  
+const upload = multer({ 
+  storage: multer.memoryStorage(),  
+  limits: { fileSize: 10 * 1024 * 1024, files: 5 }  
+});
 
 const { authenticateSession, authorizeAdmin } = require('../utils/validation'); 
 
@@ -30,5 +37,12 @@ router.delete('/api/permission-modules/:module_code', authenticateSession, autho
 router.post('/api/user-permissions', authenticateSession, authorizeAdmin, userPermissions.create);
 router.put('/api/user-permissions/:id', authenticateSession, authorizeAdmin, userPermissions.update);
 
-module.exports = router;
+//Item module 
+router.post('/api/item-modules',authenticateSession,upload.array('pictures', 5), item.create); // create item
+router.put('/api/item-modules/:item_code', authenticateSession, upload.array('pictures', 5),item.updateItem); // update version 
+router.get('/api/item-modules',authenticateSession,item.listLatestForAll); // get all item // done
+router.get('/api/item-modules/:item_code',authenticateSession,item.getLatestByItemCode); // get latest item by item_code // done 
+router.get('/api/item-modules/all-version/:item_code',authenticateSession,item.getVersions); //all version for item_code
 
+
+module.exports = router;

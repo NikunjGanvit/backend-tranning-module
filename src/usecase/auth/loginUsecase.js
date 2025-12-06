@@ -8,7 +8,7 @@ const loginUsecase = async ({ username, password, session }) => {
   const ok = await comparePassword(password, user.password);
   if (!ok) throw { status: 401, message: 'Invalid credentials' };
 
-  // Set session (requires session param)
+
   session.user = { 
     id: user.id, 
     username: user.username, 
@@ -34,10 +34,10 @@ const loginUsecase = async ({ username, password, session }) => {
     });
   });
 
-  // Return minimal for response (no token)
+
   return { 
     message: 'Logged in successfully', 
-    user: { id: user.id, username: user.username } // Hide is_admin
+    user: { id: user.id, username: user.username } 
   };
 };
 
