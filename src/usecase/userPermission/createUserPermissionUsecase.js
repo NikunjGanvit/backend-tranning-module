@@ -5,6 +5,10 @@ const pmRepo = require('../../data-access/repositories/permissionModuleRepositor
 const createUserPermissionUsecase = async ({ requester, payload }) => {
   const { user_id, module_code, can_create, can_update, can_delete, can_view } = payload;
   const user = await userRepo.findById(user_id);
+  // console.log(user);
+   if (!module_code || typeof module_code !== 'string' || module_code.trim() === '') {
+    throw { status: 400, message: 'module_code is required' };
+  }
   if (!user) throw { status: 404, message: 'User not found' };
   const pm = await pmRepo.findByCode(module_code);
   if (!pm) throw { status: 404, message: 'Module not found' };

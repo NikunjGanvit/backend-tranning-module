@@ -6,6 +6,7 @@ const users = require('../controller/usersController');
 const permissions = require('../controller/permissionController');
 const userPermissions = require('../controller/userPermissionController');
 const item = require('../controller/itemController');
+const authorizePermission = require('../utils/checkPermission');
 
 const multer = require('multer');  
 const upload = multer({ 
@@ -22,11 +23,11 @@ router.post('/api/auth/logout',auth.logout);
 
 
 // Users
-router.get('/api/users/:id', authenticateSession, users.getById); // Done
-router.put('/api/users/:id/profile', authenticateSession, users.updateProfile); // done
-router.put('/api/users/:id/password', authenticateSession, users.updatePassword); // done
-router.delete('/api/users/:id', authenticateSession, authorizeAdmin, users.softDelete); // done
-router.post('/api/users',authenticateSession,users.createUser);
+router.get('/api/users/:id', authenticateSession,authorizePermission('view'),users.getById); // Done
+router.put('/api/users/:id/profile', authenticateSession,authorizePermission('update'), users.updateProfile); // done
+router.put('/api/users/:id/password', authenticateSession, authorizePermission('update'), users.updatePassword); // done
+router.delete('/api/users/:id', authenticateSession, authorizePermission('delete'), users.softDelete); // done
+router.post('/api/users',authenticateSession,authorizePermission('create'),users.createUser);
 
 // Permission modules (admin)
 router.post('/api/permission-modules',authenticateSession, authorizeAdmin, permissions.create);//done 

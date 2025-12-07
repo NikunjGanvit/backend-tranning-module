@@ -13,7 +13,7 @@ const softDeleteUserUsecase = async ({ requester, targetId }) => {
     // Admins can delete any user (subject to self-check below)
   } else {
     // Check if requester has can_delete permission for the 'user' module
-    const userPermission = await userPermissionRepo.findById(requester.user_id); 
+    const userPermission = await userPermissionRepo.findById(requester.id); 
     if (!userPermission || !userPermission.can_delete) {
       throw { status: 403, message: 'Forbidden - lack delete permission for users!' };
     }
