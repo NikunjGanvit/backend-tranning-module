@@ -1,76 +1,195 @@
+// app.js — fixed: ensure session middleware is installed BEFORE routes
+require('dotenv').config();
+
 const express = require('express');
-const routes = require('./routes');
-const errorHandler = require('./utils/httpErrors');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
+const { createClient } = require('redis');
+const cors = require('cors');
+
+const routes = require('./routes');
+const errorHandler = require('./utils/httpErrors');
 const minioClient = require('./utils/minioClient');
 require('./utils/cron/deleteSoftDeletedUsers');
+
 const app = express();
 
-// Security: CORS if needed for frontend (add if cross-origin)
-const cors = require('cors'); // npm install cors if missing
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000', // Adjust
-  credentials: true, // Allow session cookies
-}));
+/* Optional: trust proxy if behind a load balancer (set TRUST_PROXY=1 in env) */
+if (process.env.TRUST_PROXY === '1') {
+  app.set('trust proxy', 1);
+}
 
+/* CORS */
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true,
+  })
+);
+
+/* Test MinIO (keeps existing behavior) */
 async function testMinIOConnection() {
   try {
     const buckets = await minioClient.listBuckets();
-    console.log('✅ MinIO Connected! Existing buckets:', buckets.map(b => b.name));
+    console.log('✅ MinIO Connected! Buckets:', buckets.map((b) => b.name));
 
-    // Optional: Create bucket for items
     const bucketName = 'items-pictures';
     const exists = await minioClient.bucketExists(bucketName);
     if (!exists) {
       await minioClient.makeBucket(bucketName, 'us-east-1');
       console.log(`✅ Created bucket: ${bucketName}`);
     } else {
-      console.log(`✅ Bucket '${bucketName}' ready.`);
+      console.log(`✅ Bucket '${bucketName}' is ready.`);
     }
   } catch (err) {
-    console.error('❌ MinIO Connection failed:', err.message);
-    process.exit(1);  // Stop app if MinIO is critical
+    console.error('❌ MinIO connection failed:', err.message);
+    process.exit(1);
   }
 }
-
 testMinIOConnection();
 
-app.use(cookieParser());
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET ?? 'c8adf06dd8334879abcf601334e7d44fa3f83a5a499a93243d7c92f2183135cb', 
-    resave: false, 
-    saveUninitialized: false, 
-    cookie: {
-      httpOnly: true, 
-      secure: process.env.NODE_ENV === 'production', // Enforce HTTPS in prod
-      sameSite: 'strict', // Good for CSRF; use 'lax' if forms need redirects
-      maxAge: 1000 * 60 * 60 * 24, // 1 day—consider shorter for sensitive apps
-    },
-    // Prod tip: Add store for multi-server (e.g., Redis)
-    // store: new (require('connect-redis')(session))({ client: redisClient }),
-  })
-);
-
+/* Body parsers + cookie parser */
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
-// Health (unchanged—great for monitoring)
+/* Simple health check (can be hit without session) */
 app.get('/health', (req, res) => res.json({ ok: true }));
 
-// Optional: Session debug middleware (remove in prod)
-if (process.env.NODE_ENV !== 'production') {
-  app.use((req, res, next) => {
-    console.log('Session ID:', req.sessionID); // For testing
-    next();
-  });
+/* Redis + Session setup variables */
+const REDIS_HOST = process.env.REDIS_HOST || 'redis';
+const REDIS_PORT = process.env.REDIS_PORT || 6379;
+const REDIS_PASSWORD = process.env.REDIS_PASSWORD || undefined;
+const SESSION_SECRET =
+  process.env.SESSION_SECRET ||
+  'c8adf06dd8334879abcf601334e7d44fa3f83a5a499a93243d7c92f2183135cb';
+
+const redisUrl = REDIS_PASSWORD
+  ? `redis://:${encodeURIComponent(REDIS_PASSWORD)}@${REDIS_HOST}:${REDIS_PORT}`
+  : `redis://${REDIS_HOST}:${REDIS_PORT}`;
+
+/* Create Redis client (we will connect inside init) */
+const redisClient = createClient({ url: redisUrl });
+redisClient.on('error', (err) => {
+  console.error('❌ Redis Error:', err);
+});
+
+/* Initialize connect-redis and session store, THEN mount routes & error handler */
+(async () => {
+  let connectRedisModule;
+  try {
+    // prefer require; fallback to dynamic import handled inside if needed
+    connectRedisModule = require('connect-redis');
+  } catch (eRequire) {
+    try {
+      const imported = await import('connect-redis');
+      connectRedisModule = imported.default || imported;
+    } catch (eImport) {
+      console.error('Failed to load connect-redis via require() and import():', eRequire, eImport);
+      console.error('If needed, install the classic API: npm i connect-redis@6');
+      process.exit(1);
+    }
+  }
+
+  // Resolve constructor/factory for session store (v7 { RedisStore }, v6 factory, or ESM)
+  const resolveCandidate = (candidate) => {
+    if (!candidate) return null;
+    if (typeof candidate === 'function') {
+      // could be factory or constructor/class
+      try {
+        const maybeCtor = candidate(session); // v6 returns a constructor when called
+        if (typeof maybeCtor === 'function') return maybeCtor;
+      } catch (e) {
+        // calling failed; candidate might itself be a constructor/class
+        return candidate;
+      }
+      return candidate;
+    }
+    if (typeof candidate === 'object') {
+      if (candidate.RedisStore && typeof candidate.RedisStore === 'function') {
+        return candidate.RedisStore; // v7 shape
+      }
+      if (candidate.default) return resolveCandidate(candidate.default);
+    }
+    return null;
+  };
+
+  const StoreConstructor = resolveCandidate(connectRedisModule);
+
+  if (!StoreConstructor) {
+    console.error('connect-redis import shape not recognized. Module keys:', Object.keys(connectRedisModule || {}));
+    console.error('Module sample:', connectRedisModule);
+    console.error('Quick fix: install connect-redis@6 (classic API) or ensure connect-redis is installed.');
+    process.exit(1);
+  }
+
+  // Connect Redis client
+  try {
+    await redisClient.connect();
+    console.log('✅ Connected to Redis at', redisUrl);
+  } catch (err) {
+    console.error('Failed to connect to Redis:', err);
+    process.exit(1);
+  }
+
+  // instantiate store
+  let store;
+  try {
+    store = new StoreConstructor({ client: redisClient, prefix: 'sess:' });
+  } catch (errNew) {
+    // fallback: some shapes expect a different invocation; try calling as a function
+    try {
+      store = StoreConstructor({ client: redisClient, prefix: 'sess:' });
+    } catch (err2) {
+      console.error('Failed to instantiate session store:', errNew, err2);
+      process.exit(1);
+    }
+  }
+
+  // mount the session middleware BEFORE routes
+  app.use(
+    session({
+      store,
+      name: process.env.SESSION_COOKIE_NAME || 'sid',
+      secret: SESSION_SECRET,
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.SESSION_SAMESITE || 'strict',
+        maxAge: Number(process.env.SESSION_MAX_AGE_MS) || 1000 * 60 * 60 * 24, // 1 day
+      },
+    })
+  );
+
+  // Dev-only: log sessionID so you can verify session created
+  if (process.env.NODE_ENV !== 'production') {
+    app.use((req, res, next) => {
+      console.log('Session ID:', req.sessionID);
+      next();
+    });
+  }
+
+  /* ==== MOUNT ROUTES & ERROR HANDLER AFTER SESSION MIDDLEWARE ==== */
+  app.use(routes);
+  app.use(errorHandler);
+})();
+
+/* Graceful shutdown */
+async function shutdown(signal) {
+  console.log(`Received ${signal}. Shutting down...`);
+  try {
+    if (redisClient && redisClient.isOpen) {
+      await redisClient.quit();
+      console.log('Redis disconnected');
+    }
+  } catch (err) {
+    console.warn('Error disconnecting Redis:', err);
+  }
+  process.exit(0);
 }
-
-// Main API routes
-app.use(routes);
-
-// Global error handler (unchanged—handles 401/500 from auth nicely)
-app.use(errorHandler);
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 module.exports = app;
