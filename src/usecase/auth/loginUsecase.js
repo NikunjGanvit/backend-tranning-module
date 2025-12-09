@@ -2,13 +2,17 @@ const userRepo = require('../../data-access/repositories/userRepository');
 const { comparePassword } = require('../../utils/password');
 
 const loginUsecase = async ({ username, password, session }) => {
-  const user = await userRepo.findByUsername(username);
-  if (!user || user.is_deleted) throw { status: 401, message: 'Invalid credentials' };
+  const user = await userRepo.findByUsername(username);  // Plain object
+  if (!user || user.is_deleted) {  // Works on plain bool
+    throw { status: 401, message: 'Invalid credentials' };
+  }
 
-  const ok = await comparePassword(password, user.password);
-  if (!ok) throw { status: 401, message: 'Invalid credentials' };
+  const ok = await comparePassword(password, user.password);  // Plain string
+  if (!ok) {
+    throw { status: 401, message: 'Invalid credentials' };
+  }
 
-
+  // Set session (same as before)
   session.user = { 
     id: user.id, 
     username: user.username, 
@@ -33,7 +37,6 @@ const loginUsecase = async ({ username, password, session }) => {
       console.log('LOGIN: Session saved with new ID:', session.id);
     });
   });
-
 
   return { 
     message: 'Logged in successfully', 

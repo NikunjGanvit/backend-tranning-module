@@ -1,19 +1,40 @@
 'use strict';
 
+require('dotenv').config(); // ensure env vars are loaded
+
 const fs = require('fs');
 const path = require('path');
 const Sequelize = require('sequelize');
 const process = require('process');
 const basename = path.basename(__filename);
 const env = process.env.NODE_ENV || 'development';
-const config = require(__dirname + '/../config/config.json')[env];
-const db = {};
 
+// Try to load JS config (config/config.js or config/index.js) first,
+// otherwise fallback to config/config.json (if you still have it).
+let config;
+const configJsPath = path.join(__dirname, '..', 'config', 'config'); // config/config.js or config/index.js
+const configJsonPath = path.join(__dirname, '..', 'config', 'config.json');
+
+try {
+  // require will resolve .js or index.js automatically
+  config = require(configJsPath)[env];
+} catch (err) {
+  // If not found, try JSON
+  if (fs.existsSync(configJsonPath)) {
+    config = require(configJsonPath)[env];
+  } else {
+    // rethrow the original error if neither exists
+    throw err;
+  }
+}
+
+const db = {};
 let sequelize;
+
 if (config.use_env_variable) {
   sequelize = new Sequelize(process.env[config.use_env_variable], config);
 } else {
-  sequelize = new Sequelize(config.database, config.username, config.password, config);
+  sequelize = new Sequelize(config.database, config.username, config.password, config,);
 }
 
 fs
@@ -41,3 +62,49 @@ db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 
 module.exports = db;
+
+
+
+// 'use strict';
+
+// const fs = require('fs');
+// const path = require('path');
+// const Sequelize = require('sequelize');
+// const process = require('process');
+// const basename = path.basename(__filename);
+// const env = process.env.NODE_ENV || 'development';
+// const config = require(__dirname + '/../config/config.json')[env];
+// const db = {};
+
+// let sequelize;
+// if (config.use_env_variable) {
+//   sequelize = new Sequelize(process.env[config.use_env_variable], config);
+// } else {
+//   sequelize = new Sequelize(config.database, config.username, config.password, config);
+// }
+
+// fs
+//   .readdirSync(__dirname)
+//   .filter(file => {
+//     return (
+//       file.indexOf('.') !== 0 &&
+//       file !== basename &&
+//       file.slice(-3) === '.js' &&
+//       file.indexOf('.test.js') === -1
+//     );
+//   })
+//   .forEach(file => {
+//     const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
+//     db[model.name] = model;
+//   });
+
+// Object.keys(db).forEach(modelName => {
+//   if (db[modelName].associate) {
+//     db[modelName].associate(db);
+//   }
+// });
+
+// db.sequelize = sequelize;
+// db.Sequelize = Sequelize;
+
+// module.exports = db;

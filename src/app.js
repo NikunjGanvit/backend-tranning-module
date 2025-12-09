@@ -6,7 +6,6 @@ const session = require('express-session');
 const cookieParser = require('cookie-parser');
 const { createClient } = require('redis');
 const cors = require('cors');
-
 const routes = require('./routes');
 const errorHandler = require('./utils/httpErrors');
 const minioClient = require('./utils/minioClient');
@@ -48,15 +47,12 @@ async function testMinIOConnection() {
 }
 testMinIOConnection();
 
-/* Body parsers + cookie parser */
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-
-/* Simple health check (can be hit without session) */
 app.get('/health', (req, res) => res.json({ ok: true }));
 
-/* Redis + Session setup variables */
 const REDIS_HOST = process.env.REDIS_HOST || 'redis';
 const REDIS_PORT = process.env.REDIS_PORT || 6379;
 const REDIS_PASSWORD = process.env.REDIS_PASSWORD || undefined;
@@ -68,17 +64,14 @@ const redisUrl = REDIS_PASSWORD
   ? `redis://:${encodeURIComponent(REDIS_PASSWORD)}@${REDIS_HOST}:${REDIS_PORT}`
   : `redis://${REDIS_HOST}:${REDIS_PORT}`;
 
-/* Create Redis client (we will connect inside init) */
 const redisClient = createClient({ url: redisUrl });
 redisClient.on('error', (err) => {
   console.error('❌ Redis Error:', err);
 });
 
-/* Initialize connect-redis and session store, THEN mount routes & error handler */
 (async () => {
   let connectRedisModule;
   try {
-    // prefer require; fallback to dynamic import handled inside if needed
     connectRedisModule = require('connect-redis');
   } catch (eRequire) {
     try {
@@ -90,24 +83,21 @@ redisClient.on('error', (err) => {
       process.exit(1);
     }
   }
-
-  // Resolve constructor/factory for session store (v7 { RedisStore }, v6 factory, or ESM)
   const resolveCandidate = (candidate) => {
     if (!candidate) return null;
     if (typeof candidate === 'function') {
-      // could be factory or constructor/class
+
       try {
-        const maybeCtor = candidate(session); // v6 returns a constructor when called
+        const maybeCtor = candidate(session); 
         if (typeof maybeCtor === 'function') return maybeCtor;
       } catch (e) {
-        // calling failed; candidate might itself be a constructor/class
         return candidate;
       }
       return candidate;
     }
     if (typeof candidate === 'object') {
       if (candidate.RedisStore && typeof candidate.RedisStore === 'function') {
-        return candidate.RedisStore; // v7 shape
+        return candidate.RedisStore; 
       }
       if (candidate.default) return resolveCandidate(candidate.default);
     }
@@ -123,7 +113,6 @@ redisClient.on('error', (err) => {
     process.exit(1);
   }
 
-  // Connect Redis client
   try {
     await redisClient.connect();
     console.log('✅ Connected to Redis at', redisUrl);
@@ -132,7 +121,7 @@ redisClient.on('error', (err) => {
     process.exit(1);
   }
 
-  // instantiate store
+
   let store;
   try {
     store = new StoreConstructor({ client: redisClient, prefix: 'sess:' });
@@ -146,7 +135,6 @@ redisClient.on('error', (err) => {
     }
   }
 
-  // mount the session middleware BEFORE routes
   app.use(
     session({
       store,
@@ -163,7 +151,6 @@ redisClient.on('error', (err) => {
     })
   );
 
-  // Dev-only: log sessionID so you can verify session created
   if (process.env.NODE_ENV !== 'production') {
     app.use((req, res, next) => {
       console.log('Session ID:', req.sessionID);
@@ -171,12 +158,10 @@ redisClient.on('error', (err) => {
     });
   }
 
-  /* ==== MOUNT ROUTES & ERROR HANDLER AFTER SESSION MIDDLEWARE ==== */
   app.use(routes);
   app.use(errorHandler);
 })();
 
-/* Graceful shutdown */
 async function shutdown(signal) {
   console.log(`Received ${signal}. Shutting down...`);
   try {

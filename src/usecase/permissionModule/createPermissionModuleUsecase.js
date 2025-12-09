@@ -6,15 +6,18 @@ const createPermissionModuleUsecase = async ({ requester, payload }) => {
     throw { status: 400, message: 'module_code is required' };
   }
 
+  // Check existence (now plain object)
   const existing = await repo.findByCode(payload.module_code);
-  if (existing) throw { status: 409, message: 'module_code exists' };
+  if (existing) {
+    throw { status: 409, message: 'module_code exists' };
+  }
 
   const created = await repo.create({
     ...payload,
-    created_by: requester.id
-  });
+    created_by: requester.id  // From auth
+  });  // Plain object
 
-  return created;
+  return created;  // Full row, e.g., { module_code, module_description, is_active: true, ... }
 };
 
 module.exports = createPermissionModuleUsecase;

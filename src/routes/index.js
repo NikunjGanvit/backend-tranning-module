@@ -7,6 +7,8 @@ const permissions = require('../controller/permissionController');
 const userPermissions = require('../controller/userPermissionController');
 const item = require('../controller/itemController');
 const authorizePermission = require('../utils/checkPermission');
+const role = require('../controller/roleController');
+const assignrole = require('../controller/roleAssignController');
 
 const multer = require('multer');  
 const upload = multer({ 
@@ -45,5 +47,14 @@ router.get('/api/item-modules',authenticateSession,item.listLatestForAll); // ge
 router.get('/api/item-modules/:item_code',authenticateSession,item.getLatestByItemCode); // get latest item by item_code // done 
 router.get('/api/item-modules/all-version/:item_code',authenticateSession,item.getVersions); //all version for item_code
 
+//Roles 
+router.get('/api/roles/:role_id',authenticateSession,authorizeAdmin,role.getById); //get role by id
+router.get('/api/roles',authenticateSession,authenticateSession,role.list); // get all roles
+router.post('/api/roles',authenticateSession,authorizeAdmin,role.create); // create role 
+router.put('/api/roles/:role_id',authenticateSession,authorizeAdmin,role.update); // update role by id 
+router.delete('/api/roles/:role_id',authenticateSession,authorizeAdmin,role.remove); // delete role by id 
+
+//Assign Roles
+router.post('/api/assign-role',authenticateSession,authorizeAdmin,assignrole.assign);
 
 module.exports = router;

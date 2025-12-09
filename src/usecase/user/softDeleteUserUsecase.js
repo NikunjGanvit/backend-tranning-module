@@ -20,12 +20,14 @@ const softDeleteUserUsecase = async ({ requester, targetId }) => {
   }
 
   // Prevent from deleting themselves
-  if (requester.id === targetId) {
+  if (requester.id == targetId) {  // Loose ==
     throw { status: 400, message: 'Cannot delete own account' };
   }
 
+  // Perform soft delete (deletedBy = requester.id)
   await userRepo.softDelete(targetId, requester.id);
-  return { message: 'User soft-deleted' };
+
+  return { message: 'User soft-deleted successfully' };
 };
 
 module.exports = softDeleteUserUsecase;

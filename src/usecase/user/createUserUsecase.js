@@ -1,5 +1,4 @@
-const userRepo = require('../../data-access/repositories/userRepository');
-const userPermissionRepo = require('../../data-access/repositories/userPermissionRepository');
+const userRepo = require('../../data-access/repositories/userRepository');  
 const { hashPassword } = require('../../utils/password');
 
 const createUserUsecase = async ({ requester, username, password, address1, address2, phone_number }) => {
@@ -8,28 +7,27 @@ const createUserUsecase = async ({ requester, username, password, address1, addr
     throw { status: 401, message: 'Unauthenticated request' };
   }
 
-  const isAdmin = requester.is_admin === true; // force boolean
-
-  if (isAdmin) {
-
-  } else {
-  
-    const userPermission = await userPermissionRepo.findById(requester.id); 
-    if (!userPermission || !userPermission.can_create) {
-      throw { status: 403, message: 'Forbidden - lack create permission for users!' };
-    }
-  }
-
+  // Check uniqueness (uses old findByUsername—migrate later if needed)
   const existing = await userRepo.findByUsername(username);
   if (existing) {
     throw { status: 409, message: 'Username already taken' };
   }
+
   if (!password || typeof password !== 'string' || password.trim() === '') {
     throw { status: 400, message: 'password is required' };
   }
 
   const hash = await hashPassword(password);
-  const user = await userRepo.create({ username, password: hash, address1, address2, phone_number, is_admin: false });
+  const user = await userRepo.create({ 
+    username, 
+    password: hash, 
+    address1, 
+    address2, 
+    phone_number, 
+    is_admin: false  // Default non-admin
+  });
+
+  // user is now plain object, but your return only uses basics—no issue
   return { id: user.id, username: user.username, createdAt: user.createdAt };
 };
 

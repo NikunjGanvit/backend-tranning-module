@@ -1,5 +1,5 @@
 const itemRepo = require('../../data-access/repositories/itemModuleRepository');
-const minioUploader = require('../../utils/minioUploader'); // correct helper path
+const minioUploader = require('../../utils/minioUploader');  // Your uploader
 
 const createItemModuleUsecase = async ({
   requester,
@@ -14,25 +14,27 @@ const createItemModuleUsecase = async ({
     throw { status: 401, message: 'Unauthenticated request' };
   }
 
-  // ❗ Check if item_code already exists
+  // Check if item_code already exists (plain object)
   const existing = await itemRepo.findLatestByItemCode(item_code);
   if (existing) {
     throw { status: 409, message: `Item code '${item_code}' already exists` };
   }
 
-  // Since item_code doesn't exist → this will be version 1
+  // Version 1 for new
   const nextVersion = 1;
 
-  // Upload images if provided (use your minioUploader)
+  // Upload images if provided
   let item_pictures = [];
   if (files && files.length > 0) {
     try {
       item_pictures = await minioUploader.uploadFiles(
-        'items-pictures',  // Bucket name (match your MinIO setup)
+        'items-pictures',
         files,
         item_code,
         nextVersion
       );
+
+      
     } catch (uploadErr) {
       throw { status: 500, message: 'File upload failed', details: uploadErr.message };
     }
@@ -41,7 +43,7 @@ const createItemModuleUsecase = async ({
   const payload = {
     item_code,
     description,
-    item_pictures,  // Array of URLs from MinIO
+    item_pictures,  // Array from MinIO
     length,
     breadth,
     height,
@@ -49,10 +51,9 @@ const createItemModuleUsecase = async ({
     created_by: requester.id
   };
 
-  const created = await itemRepo.create(payload);
+  const created = await itemRepo.create(payload);  // Plain object—no .toJSON()
 
-  return created.toJSON ? created.toJSON() : created;
+  return created;
 };
 
 module.exports = createItemModuleUsecase;
-

@@ -1,4 +1,3 @@
-// controllers/itemController.js
 const createItemModuleUsecase = require('../usecase/itemModule/createItemModuleUsecase');
 const itemRepo = require('../data-access/repositories/itemModuleRepository');
 const { uploadFiles } = require('../utils/minioUploader');
@@ -13,17 +12,16 @@ const create = async (req, res, next) => {
       length: req.body.length ? Number(req.body.length) : null,
       breadth: req.body.breadth ? Number(req.body.breadth) : null,
       height: req.body.height ? Number(req.body.height) : null,
-      files: req.files || []  // From multer
+      files: req.files || []
     };
 
-    const created = await createItemModuleUsecase(payload);
+    const created = await createItemModuleUsecase(payload);  // Plain object
     return res.status(201).json(created);
   } catch (err) {
-    next(err);  // Passes to error middleware
+    next(err); 
   }
 };
 
-// Controller
 const updateItem = async (req, res, next) => {
   try {
     const { item_code } = req.params;
@@ -37,12 +35,11 @@ const updateItem = async (req, res, next) => {
       return res.status(400).json({ message: 'body must contain fields to update' });
     }
 
-   
     let item_pictures = null;  
     if (files.length > 0) {
       const bucket = 'items-pictures';
 
-      const latest = await itemRepo.findLatestByItemCode(item_code);  
+      const latest = await itemRepo.findLatestByItemCode(item_code);  // Plain
       if (!latest) {
         return res.status(404).json({ message: 'Item not found' });
       }
@@ -54,11 +51,9 @@ const updateItem = async (req, res, next) => {
       patch.item_pictures = item_pictures;
     }
 
+    const newVersion = await itemRepo.updateByItemCode(item_code, patch, { requester: req.user });  // Plain
 
-    const newVersion = await itemRepo.updateByItemCode(item_code, patch, { requester: req.user });
-
-   
-    let responseData = newVersion.toJSON ? newVersion.toJSON() : newVersion;
+    let responseData = newVersion;  // No .toJSON()
     if (item_pictures && item_pictures.length > 0) {
       const urls = await generatePresignedUrls('items-pictures', item_pictures);
       responseData.item_pictures = urls;  
@@ -73,7 +68,7 @@ const updateItem = async (req, res, next) => {
 const getLatestByItemCode = async (req, res, next) => {
   try {
     const { item_code } = req.params;
-    const item = await itemRepo.findLatestByItemCode(item_code);
+    const item = await itemRepo.findLatestByItemCode(item_code);  // Plain
     if (!item) {
       return res.status(404).json({ message: 'Item not found' });
     }
@@ -85,32 +80,27 @@ const getLatestByItemCode = async (req, res, next) => {
 
 const listLatestForAll = async (req, res, next) => {
   try {
-    const items = await itemRepo.getLatestForAll(req.query);
+    const items = await itemRepo.getLatestForAll(req.query);  // Array of plain
 
     return res.json({
       count: items.length,
       data: items
     });
-
   } catch (err) {
     next(err);
   }
 };
-
-
-
 
 const getVersions = async (req, res, next) => {
   try {
     const { item_code } = req.params;
     if (!item_code) return res.status(400).json({ message: 'item_code is required in params' });
 
-
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Number(req.query.limit) || 50); 
     const offset = (page - 1) * limit;
 
-    const versions = await itemRepo.getAllVersionsForItemCode(item_code, { limit, offset });
+    const versions = await itemRepo.getAllVersionsForItemCode(item_code, { limit, offset });  // Array of plain
 
     if (!versions || versions.length === 0) {
       return res.status(404).json({ message: `No item versions found for item_code: ${item_code}` });
@@ -125,20 +115,17 @@ const getVersions = async (req, res, next) => {
   }
 };
 
-
-
 const getSpecificVersion = async (req, res, next) => {
   try {
     const { item_code, version } = req.params;
     const ver = Number(version);
-    const item = await itemRepo.findByItemCodeAndVersion(item_code, ver);
+    const item = await itemRepo.findByItemCodeAndVersion(item_code, ver);  // Plain
     if (!item) return res.status(404).json({ message: 'Version not found' });
     return res.json(item);
   } catch (err) {
     next(err);
   }
 };
-
 
 module.exports = {
   create,
@@ -147,5 +134,4 @@ module.exports = {
   getVersions,
   getSpecificVersion,
   updateItem
-
 };
